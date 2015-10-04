@@ -1,8 +1,9 @@
 from django.conf.urls import include, url
 from django.contrib import admin
 from tastypie.api import Api
-from resources.UserResource import UserResource
-from resources.TicketReportResource import TicketReportResource
+from api_handler.api.UserResource import UserResource
+from api_handler.api.TicketReportResource import TicketReportResource
+#from resources.TicketReportResource import TicketReportResource
 
 
 # Hook Up the resources here
