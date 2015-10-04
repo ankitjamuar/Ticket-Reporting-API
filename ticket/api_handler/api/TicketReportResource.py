@@ -23,20 +23,20 @@ class TicketReportResource(ModelResource):
                 (self._meta.resource_name),
                 self.wrap_view('ticket_closed'), name="api_ticket_closed"),
 
-            url(r"^(?P<resource_name>%s)/ticket-replytime%s$" %
-                (self._meta.resource_name, trailing_slash()),
+            url(r"^(?P<resource_name>%s)/ticket-replytime(?:/(?P<_from>\d{4}-\d{2}-\d{2}))?(?:/(?P<_to>\d{4}-\d{2}-\d{2}))?/$" %
+                (self._meta.resource_name),
                 self.wrap_view('ticket_replytime'), name="api_ticket-replytime"),
 
-            url(r"^(?P<resource_name>%s)/ticket-closetime%s$" %
-                (self._meta.resource_name, trailing_slash()),
+            url(r"^(?P<resource_name>%s)/ticket-closetime(?:/(?P<_from>\d{4}-\d{2}-\d{2}))?(?:/(?P<_to>\d{4}-\d{2}-\d{2}))?/$" %
+                (self._meta.resource_name),
                 self.wrap_view('ticket_replytime'), name="api_ticket-closetime"),
 
-            url(r"^(?P<resource_name>%s)/ticket-status-series%s$" %
-                (self._meta.resource_name, trailing_slash()),
+            url(r"^(?P<resource_name>%s)/ticket-status-series(?:/(?P<_from>\d{4}-\d{2}-\d{2}))?(?:/(?P<_to>\d{4}-\d{2}-\d{2}))?/$" %
+                (self._meta.resource_name),
                 self.wrap_view('ticket_status_series'), name="api_ticket_status_series"),
 
-            url(r"^(?P<resource_name>%s)/ticket-replytime-series%s$" %
-                (self._meta.resource_name, trailing_slash()),
+            url(r"^(?P<resource_name>%s)/ticket-replytime-series(?:/(?P<_from>\d{4}-\d{2}-\d{2}))?(?:/(?P<_to>\d{4}-\d{2}-\d{2}))?/$" %
+                (self._meta.resource_name),
                 self.wrap_view('ticket_replytime_series'), name="api_ticket_replytime_series")
 
 
@@ -76,7 +76,7 @@ class TicketReportResource(ModelResource):
 
 
     # This API endpoint will return replytime within specified range
-    def ticket_replytime(self, request, **kwargs):
+    def ticket_replytime(self, request, _from, _to, **kwargs):
         self.method_check(request, allowed=['get'])
         print request
 
@@ -84,7 +84,7 @@ class TicketReportResource(ModelResource):
 
 
     # This API endpoint will return ticket close time within specified range
-    def ticket_closetime(self, request, **kwargs):
+    def ticket_closetime(self, request, _from, _to, **kwargs):
         self.method_check(request, allowed=['get'])
         print request
 
@@ -92,14 +92,35 @@ class TicketReportResource(ModelResource):
 
 
    	# This API endpoint will return ticket series within specified range
-    def ticket_status_series(self, request, **kwargs):
+    def ticket_status_series(self, request, _from, _to, **kwargs):
         self.method_check(request, allowed=['get'])
-        print request
 
-        return self.create_response(request, request)
+        # Add 23hours 59 Minutes to reach midnight
+        if _from is not None:
+            _from = datetime.strptime(_from, "%Y-%m-%d") 
+            _to = datetime.strptime(_to, "%Y-%m-%d") 
+            _from_temp = _from 
+            data = ""
+
+            while(_from_temp <= _to):
+                _to_temp = _from_temp + timedelta(hours=23, minutes = 59)
+                tickets_closed = Message.objects.values('FK_ticket_id').annotate(Max('updated')).filter(FK_account_id__is_staff=1,updated__range=[_from,_to_temp]).count()
+                tickets_open = Message.objects.values('FK_ticket_id').annotate(Max('updated')).filter(FK_account_id__is_staff=0,updated__range=[_from,_to_temp]).count()
+                
+                print _from_temp
+                print tickets_closed
+                print tickets_open
+                data += str(_from_temp) +","+ str(tickets_open) +","+str(tickets_closed)+";"
+                print "#######################"
+                _from_temp = _from_temp + timedelta(hours=24)
+                
+
+        
+
+        return self.create_response(request, data)
 
     # This API endpoint will return replytime in series within specified range
-    def ticket_replytime_series(self, request, **kwargs):
+    def ticket_replytime_series(self, request, _from, _to, **kwargs):
         self.method_check(request, allowed=['get'])
         print request
 
