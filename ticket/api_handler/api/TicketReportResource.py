@@ -15,7 +15,7 @@ from api_handler.models import Ticket, Message
 class TicketReportResource(ModelResource):
     class Meta:
     	allowed_methods = ['get']
-        queryset = User.objects.all()
+        queryset = Ticket.objects.all()
         resource_name = 'medlanes'
 
     def prepend_urls(self):
