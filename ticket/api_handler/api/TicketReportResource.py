@@ -6,7 +6,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.db.models import Q, Max
 from datetime import datetime, timedelta
-import requests
+
 
 # Models
 from api_handler.models import Ticket, Message
