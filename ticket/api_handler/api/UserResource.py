@@ -39,7 +39,7 @@ class UserResource(ModelResource):
     def add_message(self, request, message, **kwargs):
         self.method_check(request, allowed=['get'])
         
-        ticket = Message.objects.create(message=message, FK_ticket = Ticket(pk=6), FK_account=User(pk=2))
+        ticket = Message.objects.create(message=message, FK_ticket = Ticket(pk=1), FK_account=User(pk=4))
         ticket.save()  
 
 
