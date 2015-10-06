@@ -182,13 +182,13 @@ class TicketReportResource(ModelResource):
 
         '''
         if _from is None or (_from is None and _to is None):
-            TICKETS = Ticket.objects.filter(FK_ticket_id=ticket.id)
+            TICKETS = Ticket.objects.filter()
 
         if _to is None and _from is not None:
-            TICKETS = Ticket.objects.filter(FK_ticket_id=ticket.id, updated__gte =_from)
+            TICKETS = Ticket.objects.filter(updated__gte =_from)
 
         if _from is not None and _to is not None:
-            TICKETS = Ticket.objects.filter(FK_ticket_id=ticket.id, updated__range=[_from,_to])
+            TICKETS = Ticket.objects.filter( updated__range=[_from,_to])
 
 
         for ticket in TICKETS:           
