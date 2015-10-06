@@ -59,17 +59,20 @@ class TicketReportResource(ModelResource):
         if _to is not None:
             _to = datetime.strptime(_to, "%Y-%m-%d") + timedelta(hours=23, minutes=59)
 
+        # Get all the latest message  inside  tickets raised, if that message is from Expert that is closed
+        latest_tickets = Ticket.objects.annotate(ticket_id = Max('message__id'))
+
         if _from is None or (_from is None and _to is None):
             
-            m = Message.objects.values('FK_ticket_id').annotate(Max('updated')).filter(FK_account_id__is_staff=1).count()
+            m =  Message.objects.filter(id__in = [ ticket.ticket_id for ticket in latest_tickets], FK_account_id__is_staff=1).count()
 
         if _to is None and _from is not None:
             
-            m = Message.objects.values('FK_ticket_id').annotate(Max('updated')).filter(FK_account_id__is_staff=1,updated__gte =_from).count()
+            m =  Message.objects.filter(id__in = [ ticket.ticket_id for ticket in latest_tickets], FK_account_id__is_staff=1,updated__gte =_from).count()
 
         if _from is not None and _to is not None:
 
-            m = Message.objects.values('FK_ticket_id').annotate(Max('updated')).filter(FK_account_id__is_staff=1,updated__range=[_from,_to]).count()
+            m = Message.objects.filter(id__in = [ ticket.ticket_id for ticket in latest_tickets], FK_account_id__is_staff=1,updated__range=[_from,_to]).count()
 
      
         return self.create_response(request, m)
@@ -78,15 +81,116 @@ class TicketReportResource(ModelResource):
     # This API endpoint will return replytime within specified range
     def ticket_replytime(self, request, _from, _to, **kwargs):
         self.method_check(request, allowed=['get'])
-        print request
 
-        return self.create_response(request, request)
+        # Add 23hours 59 Minutes to reach midnight
+        if _to is not None:
+            _to = datetime.strptime(_to, "%Y-%m-%d") + timedelta(hours=23, minutes=59)
+
+
+        second_message_time = None
+        total_tickets = 0
+        reply_time = 0
+        for ticket in Ticket.objects.all():           
+            i = 0
+            replytime = None
+            first_message_time = None
+            second_message_time = None
+
+            # Date Selection Logic
+
+            
+            if _from is None or (_from is None and _to is None):
+                MSGS = Message.objects.filter(FK_ticket_id=ticket.id)
+
+            if _to is None and _from is not None:
+                MSGS = Message.objects.filter(FK_ticket_id=ticket.id, updated__gte =_from)
+
+            if _from is not None and _to is not None:
+                MSGS = Message.objects.filter(FK_ticket_id=ticket.id, updated__range=[_from,_to])
+
+
+            for message in MSGS:
+                if i == 0:
+                    first_message_time = message.updated
+                    print first_message_time
+                if i > 0:
+                    expert_reply = User.objects.filter(pk=message.FK_account_id, is_staff =1 ).count()
+                    if expert_reply == 1:
+                        second_message_time = message.updated
+                        total_tickets += 1
+                        print second_message_time
+                        break
+                i += 1
+            if second_message_time is not None:
+                print ticket.id
+                d = (second_message_time - first_message_time)
+                print d
+                #global reply_time
+                reply_time +=   d.days * 24 * 60 * 60 + d.seconds  
+                print "Reply Time ", reply_time
+                print "total_tickets", total_tickets
+                print "Total Sum ", reply_time
+                print "############################"
+        if total_tickets > 0:
+            avg_time = (reply_time/total_tickets)/3600
+        else:
+            avg_time = 0
+            
+
+        return self.create_response(request, avg_time)
 
 
     # This API endpoint will return ticket close time within specified range
     def ticket_closetime(self, request, _from, _to, **kwargs):
         self.method_check(request, allowed=['get'])
-        print request
+
+        # Add 23hours 59 Minutes to reach midnight
+        if _to is not None:
+            _to = datetime.strptime(_to, "%Y-%m-%d") + timedelta(hours=23, minutes=59)
+
+
+        second_message_time = None
+        total_tickets = 0
+        reply_time = 0
+        for ticket in Ticket.objects.all():           
+            i = 0
+            replytime = None
+            first_message_time = None
+            second_message_time = None
+
+            if _from is None or (_from is None and _to is None):
+                MSGS = Message.objects.filter(FK_ticket_id=ticket.id)
+
+            if _to is None and _from is not None:
+                MSGS = Message.objects.filter(FK_ticket_id=ticket.id, updated__gte =_from)
+
+            if _from is not None and _to is not None:
+                MSGS = Message.objects.filter(FK_ticket_id=ticket.id, updated__range=[_from,_to])
+
+
+            for message in MSGS:
+                if i == 0:
+                    first_message_time = message.updated
+                    print first_message_time
+                if i > 0:
+                    expert_reply = User.objects.filter(pk=message.FK_account_id, is_staff =1 ).count()
+                    if expert_reply == 1:
+                        second_message_time = message.updated
+                        if i >= MSGS.count():
+                            total_tickets += 1
+                        print second_message_time
+                i += 1
+            if second_message_time is not None:
+                print ticket.id
+                d = (second_message_time - first_message_time)
+                print d
+                #global reply_time
+                reply_time +=   d.days * 24 * 60 * 60 + d.seconds  
+                print "Reply Time ", reply_time
+                print "total_tickets", total_tickets
+                print "Total Sum ", reply_time
+                print "############################"
+        avg_time = (reply_time/total_tickets)/3600
 
         return self.create_response(request, request)
 
@@ -102,16 +206,14 @@ class TicketReportResource(ModelResource):
             _from_temp = _from 
             data = ""
 
+            # Iterate over 24 hour interval
             while(_from_temp <= _to):
                 _to_temp = _from_temp + timedelta(hours=23, minutes = 59)
                 tickets_closed = Message.objects.values('FK_ticket_id').annotate(Max('updated')).filter(FK_account_id__is_staff=1,updated__range=[_from,_to_temp]).count()
                 tickets_open = Message.objects.values('FK_ticket_id').annotate(Max('updated')).filter(FK_account_id__is_staff=0,updated__range=[_from,_to_temp]).count()
                 
-                print _from_temp
-                print tickets_closed
-                print tickets_open
-                data += str(_from_temp) +","+ str(tickets_open) +","+str(tickets_closed)+";"
-                print "#######################"
+                data += str(_from_temp.strftime("%Y-%m-%d")) +","+ str(tickets_open) +","+str(tickets_closed)+";"
+                    
                 _from_temp = _from_temp + timedelta(hours=24)
                 
 
